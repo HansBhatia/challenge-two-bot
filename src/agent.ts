@@ -6,23 +6,8 @@ import {
   TransactionEvent,
 } from "forta-agent";
 
-/*
-{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"sender","type":"address"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"int256","name":"amount0","type":"int256"},{"indexed":false,"internalType":"int256","name":"amount1","type":"int256"},{"indexed":false,"internalType":"uint160","name":"sqrtPriceX96","type":"uint160"},{"indexed":false,"internalType":"uint128","name":"liquidity","type":"uint128"},{"indexed":false,"internalType":"int24","name":"tick","type":"int24"}],"name":"Swap","type":"event"}
-*/
-const ExactInputSingleParams =
-  "tuple(address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)";
-const ExactOutputSingleParams =
-  "tuple(address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountOut, uint256 amountInMinimum, uint160 sqrtPriceLimitX96)";
-const ExactInputParams =
-  "tuple(bytes path, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum)";
-const ExactOutputParams =
-  "tuple(bytes path, address recipient, uint256 deadline, uint256 amountOut, uint256 amountInMaximum)";
-
 export const UNI_SWAP_CALLS = [
-  `function exactInputSingle(${ExactInputSingleParams} params) external returns (uint256 amountOut)`,
-  `function exactInput(${ExactInputParams} params) external returns (uint256 amountOut)`,
-  `function exactOutputSingle(${ExactOutputSingleParams} params) external returns (uint256 amountIn)`,
-  `function exactOutput(${ExactOutputParams} params) external returns (uint256 amountIn)`,
+  `event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)`,
 ];
 export const UNI_SWAP_ROUTER_ADDRESS =
   "0xE592427A0AEce92De3Edee1F18E0157C05861564";
@@ -36,15 +21,14 @@ const handleTransaction: HandleTransaction = async (
   // limiting this agent to emit only 5 findings so that the alert feed is not spammed
   if (findingsCount >= 5) return findings;
 
+  console.log(txEvent);
+
   // filter the transaction logs for Tether transfer events
-  const uniSwapFunctionCalls = txEvent.filterFunction(
-    UNI_SWAP_CALLS,
-    UNI_SWAP_ROUTER_ADDRESS
-  );
+  const uniSwapFunctionCalls = txEvent.filterLog(UNI_SWAP_CALLS);
 
   uniSwapFunctionCalls.forEach((swapFunctionCall) => {
     // extract transfer event arguments
-    //const { params } = swapFunctionCall.args;
+    const { recipient, sender } = swapFunctionCall.args;
     // push to findins
     findings.push(
       Finding.fromObject({
@@ -53,7 +37,7 @@ const handleTransaction: HandleTransaction = async (
         alertId: "FORTA-uniswapSwapAlert",
         severity: FindingSeverity.Info,
         type: FindingType.Info,
-        metadata: {},
+        metadata: { to: recipient, from: sender },
       })
     );
     findingsCount++;
