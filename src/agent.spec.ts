@@ -1,74 +1,56 @@
-// import {
-//   FindingType,
-//   FindingSeverity,
-//   Finding,
-//   HandleTransaction,
-//   createTransactionEvent,
-//   ethers,
-// } from "forta-agent";
-// import agent, {
-//   ERC20_TRANSFER_EVENT,
-//   TETHER_ADDRESS,
-//   TETHER_DECIMALS,
-// } from "./agent";
+import { BigNumber } from "ethers";
+import { Finding, FindingSeverity, FindingType, HandleTransaction, createTransactionEvent } from "forta-agent";
+import agent, { UNI_SWAP_CALLS } from "./agent";
 
-// describe("high tether transfer agent", () => {
-//   let handleTransaction: HandleTransaction;
-//   const mockTxEvent = createTransactionEvent({} as any);
+describe("uniswap swap detection bot", () => {
+  let handleTransaction: HandleTransaction;
+  const mockTxEvent = createTransactionEvent({} as any);
 
-//   beforeAll(() => {
-//     handleTransaction = agent.handleTransaction;
-//   });
+  beforeAll(() => {
+    handleTransaction = agent.handleTransaction;
+  });
 
-//   describe("handleTransaction", () => {
-//     it("returns empty findings if there are no Tether transfers", async () => {
-//       mockTxEvent.filterLog = jest.fn().mockReturnValue([]);
+  describe("handleTransaction", () => {
+    it("returns empty findings if there are no swaps", async () => {
+      mockTxEvent.filterLog = jest.fn().mockReturnValue([]);
 
-//       const findings = await handleTransaction(mockTxEvent);
+      const findings = await handleTransaction(mockTxEvent);
 
-//       expect(findings).toStrictEqual([]);
-//       expect(mockTxEvent.filterLog).toHaveBeenCalledTimes(1);
-//       expect(mockTxEvent.filterLog).toHaveBeenCalledWith(
-//         ERC20_TRANSFER_EVENT,
-//         TETHER_ADDRESS
-//       );
-//     });
+      expect(findings).toStrictEqual([]);
+      expect(mockTxEvent.filterLog).toHaveBeenCalledTimes(1);
+      expect(mockTxEvent.filterLog).toHaveBeenCalledWith(UNI_SWAP_CALLS);
+    });
 
-//     it("returns a finding if there is a Tether transfer over 10,000", async () => {
-//       const mockTetherTransferEvent = {
-//         args: {
-//           from: "0xabc",
-//           to: "0xdef",
-//           value: ethers.BigNumber.from("20000000000"), //20k with 6 decimals
-//         },
-//       };
-//       mockTxEvent.filterLog = jest
-//         .fn()
-//         .mockReturnValue([mockTetherTransferEvent]);
+    it("returns a finding if there is a Swap", async () => {
+      const mockUniswapSwapEvent = {
+        args: {
+          recipient: "0xalice",
+          sender: "0xbob",
+          amount0: BigNumber.from("-100").toString(),
+          amount1: BigNumber.from("2000").toString(),
+        },
+      };
+      mockTxEvent.filterLog = jest.fn().mockReturnValue([mockUniswapSwapEvent]);
 
-//       const findings = await handleTransaction(mockTxEvent);
+      const findings = await handleTransaction(mockTxEvent);
 
-//       const normalizedValue = mockTetherTransferEvent.args.value.div(
-//         10 ** TETHER_DECIMALS
-//       );
-//       expect(findings).toStrictEqual([
-//         Finding.fromObject({
-//           name: "High Tether Transfer",
-//           description: `High amount of USDT transferred: ${normalizedValue}`,
-//           alertId: "FORTA-1",
-//           severity: FindingSeverity.Low,
-//           type: FindingType.Info,
-//           metadata: {
-//             to: mockTetherTransferEvent.args.to,
-//             from: mockTetherTransferEvent.args.from,
-//           },
-//         }),
-//       ]);
-//       expect(mockTxEvent.filterLog).toHaveBeenCalledTimes(1);
-//       expect(mockTxEvent.filterLog).toHaveBeenCalledWith(
-//         ERC20_TRANSFER_EVENT,
-//         TETHER_ADDRESS
-//       );
-//     });
-//   });
-// });
+      expect(findings).toStrictEqual([
+        Finding.fromObject({
+          name: "Uniswap swap detected!",
+          description: `Someone made a swap on the uniswap platform.`,
+          alertId: "FORTA-uniswapSwapAlert",
+          severity: FindingSeverity.Info,
+          type: FindingType.Info,
+          metadata: {
+            to: mockUniswapSwapEvent.args.recipient,
+            from: mockUniswapSwapEvent.args.sender,
+            fromTokenAmount: mockUniswapSwapEvent.args.amount0,
+            toTokenAmount: mockUniswapSwapEvent.args.amount1,
+          },
+        }),
+      ]);
+      expect(mockTxEvent.filterLog).toHaveBeenCalledTimes(1);
+      expect(mockTxEvent.filterLog).toHaveBeenCalledWith(UNI_SWAP_CALLS);
+    });
+  });
+});
