@@ -21,4 +21,4 @@ This agent detects swaps that occur on the uniswap v3 protocol.
 
 The agent behaviour can be verified with the following transactions:
 
--
+- 0x7b15fd54a79b6b4ca22ae30c4f96ad4dc82b8fd63c51b4366f75dda388434dba (Swap 1700 USDT -> Ether)
